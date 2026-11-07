@@ -1,3 +1,4 @@
+import { decryptSetting } from "@/lib/security/settings-secrets";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { appSettings, domains } from "@/db/schema";
@@ -20,7 +21,7 @@ export async function getResendKeyStatus(env: CloudflareEnv): Promise<ResendKeyS
 		.from(appSettings)
 		.where(eq(appSettings.id, "default"))
 		.limit(1);
-	const saved = settings?.resendApiKey?.trim();
+	const saved = (await decryptSetting(env, "resendApiKey", settings?.resendApiKey))?.trim();
 	const fromEnv = (env as { RESEND_API_KEY?: string }).RESEND_API_KEY?.trim();
 	return {
 		configured: !!(saved || fromEnv),

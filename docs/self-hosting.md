@@ -39,6 +39,10 @@ exception). Users can then enable push under **Settings → Inbox → Notificati
 
 ## Receiving mail
 
+To keep an existing provider and copy its INBOX without changing MX, use the
+[read-only IMAP bridge](imap-bridge.md) with that provider's SMTP relay. This is
+one-way inbox delivery, not bidirectional mailbox synchronization.
+
 Pick one; both can be on at once.
 
 **Built-in SMTP listener (default).** The container listens on port 25 and
@@ -97,6 +101,7 @@ and the DNS page shows what to set by hand.
 | `DATABASE_URL` | unset | Use PostgreSQL, MySQL or libSQL instead of the SQLite file in `DATA_DIR`; see [Databases](databases.md). Migrations are applied on start. |
 | `DATABASE_DRIVER` | inferred | Only to override the driver inferred from `DATABASE_URL` |
 | `APP_URL` | request origin | Public URL behind a proxy |
+| `SETTINGS_ENCRYPTION_KEY` | unset | Required before saving provider credentials. Generate with `openssl rand -hex 32`, keep outside git, and back up separately from the database. |
 | `SMTP_INBOUND_PORT` | `25` | Inbound SMTP; `0` disables |
 | `MAIL_HOSTNAME` | `mail.<domain>` | Host the MX record points at; SMTP banner |
 | `SMTP_MAX_SIZE` | 36 MiB | Largest raw inbound message; allows for encoding overhead on up to 25 MB of attachments. Oversized mail receives an SMTP rejection, which the sender's mail provider can report as a delivery failure. |
@@ -126,9 +131,13 @@ and the DNS page shows what to set by hand.
 - **Updates.** Pull the new image and recreate the container; migrations run
   at start. The in-app update button is disabled on self-hosted installs.
 - **Logs.** `docker compose logs -f mailflare`.
-- **Queues.** Jobs are held in memory. Inbound mail is written to the volume
-  before it is queued, so a restart never loses a message; at worst one
-  stays unparsed until it is re-imported.
+- **Queues.** Jobs persist in SQLite files under `/data/queues` and resume
+  after a restart. Inbound raw mail is written before enqueueing and retained
+  while its queue job references it. Inspect failed jobs with the queue admin
+  script before retrying them; back up the complete data volume.
+- **Dependency updates.** Follow [Dependency security maintenance](dependency-security.md)
+  before rebuilding an image. The runtime pilot binds HTTP to loopback until
+  its domain, HTTPS proxy and first administrator are configured.
 
 ## Email assistant and MCP
 

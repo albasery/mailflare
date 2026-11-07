@@ -8,6 +8,7 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { ComposeProvider } from "@/components/compose/compose-context";
 import { FloatingComposer } from "@/components/compose/floating-composer";
 import { MailboxProvider } from "@/components/mailbox-provider";
+import { MailSearchProvider } from "@/components/mail-search/mail-search-context";
 import { MailboxSelector } from "@/components/mailbox-selector";
 import { LicenseIndicator } from "@/components/license-indicator";
 import { AdminNav } from "@/components/admin-nav";
@@ -52,6 +53,7 @@ export default function DashboardLayout({
     <AuthGuard requireMailbox requireRole="admin" requirePrimary={requirePrimary}>
       <SidebarProvider expandedWidth={256} mobileOverlay>
       <MailboxProvider>
+        <MailSearchProvider>
         <ComposeProvider>
           <ShortcutsProvider>
             <RouteTitle />
@@ -77,6 +79,7 @@ export default function DashboardLayout({
           </div>
           </ShortcutsProvider>
         </ComposeProvider>
+        </MailSearchProvider>
       </MailboxProvider>
       </SidebarProvider>
     </AuthGuard>

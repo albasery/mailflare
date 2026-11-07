@@ -1,3 +1,4 @@
+import { encryptSetting, requireSettingsEncryptionKey } from "@/lib/security/settings-secrets";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
@@ -36,10 +37,12 @@ export async function PUT(request: Request) {
 	if (access.error) return access.error;
 	const parsed = schema.safeParse(await request.json().catch(() => null));
 	if (!parsed.success) return Response.json({ error: "Enter a Resend API key" }, { status: 400 });
+	try { requireSettingsEncryptionKey(access.env); }
+	catch (error) { return Response.json({ error: (error as Error).message }, { status: 409 }); }
 	const check = await checkResendKey(parsed.data.apiKey).catch(() => null);
 	if (!check) return Response.json({ error: "Could not reach Resend to check the key" }, { status: 502 });
 	if (!check.valid) return Response.json({ error: "Resend rejected this API key" }, { status: 400 });
-	const values = { resendApiKey: parsed.data.apiKey, updatedAt: new Date() };
+	const values = { resendApiKey: await encryptSetting(access.env, "resendApiKey", parsed.data.apiKey), updatedAt: new Date() };
 	await getDb(access.env).insert(appSettings).values({ id: "default", ...values }).onConflictDoUpdate({ target: appSettings.id, set: values });
 	return Response.json({ ...(await status(access.env)), canManageDomains: check.canManageDomains }, { headers: { "Cache-Control": "no-store" } });
 }

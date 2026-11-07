@@ -15,7 +15,7 @@ const LOOKUP_BATCH = 50;
  * `processInboundMessage` cannot: messages dropped after their final failed retry and
  * mail accepted for addresses that never resolved to a mailbox.
  */
-export async function sweepOrphanedRawMail(env: CloudflareEnv, now = new Date()): Promise<number> {
+export async function sweepOrphanedRawMail(env: CloudflareEnv, now = new Date(), protectedKeys: ReadonlySet<string> = new Set()): Promise<number> {
 	const db = getDb(env);
 	let removed = 0;
 	let cursor: string | undefined;
@@ -27,7 +27,7 @@ export async function sweepOrphanedRawMail(env: CloudflareEnv, now = new Date())
 			const batch = old.slice(index, index + LOOKUP_BATCH);
 			const referenced = await db.select({ key: messages.rawR2Key }).from(messages).where(inArray(messages.rawR2Key, batch));
 			const kept = new Set(referenced.map((row) => row.key));
-			orphans.push(...batch.filter((key) => !kept.has(key)));
+			orphans.push(...batch.filter((key) => !kept.has(key) && !protectedKeys.has(key)));
 		}
 		if (orphans.length) {
 			await env.BUCKET.delete(orphans);

@@ -1,3 +1,4 @@
+import { requireSettingsEncryptionKey } from "@/lib/security/settings-secrets";
 import { z } from "zod";
 import { getEnv } from "@/lib/cloudflare";
 import { requireSessionUser } from "@/lib/api/auth";
@@ -35,6 +36,8 @@ export async function PUT(request: Request) {
 	if (access.error) return access.error;
 	const parsed = schema.safeParse(await request.json().catch(() => null));
 	if (!parsed.success) return Response.json({ error: parsed.error.issues[0]?.message ?? "Enter an access key ID, secret and region" }, { status: 400 });
+	try { requireSettingsEncryptionKey(access.env); }
+	catch (error) { return Response.json({ error: (error as Error).message }, { status: 409 }); }
 	try {
 		const report = await validateAwsConfig(parsed.data);
 		if (!report.sending && !report.receiving) {

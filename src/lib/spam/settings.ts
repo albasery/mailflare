@@ -1,3 +1,4 @@
+import { encryptSetting, decryptSetting } from "@/lib/security/settings-secrets";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
@@ -47,8 +48,8 @@ function envFlagOff(value: string | undefined) {
 export async function getSpamIntelligenceConfig(env: CloudflareEnv): Promise<SpamIntelligenceConfig> {
 	const stored = await readStoredSettings(env);
 	return {
-		spamhausDqsKey: stored?.spamhausDqsKey || env.SPAMHAUS_DQS_KEY?.trim() || undefined,
-		abuseChAuthKey: stored?.abusechAuthKey || env.ABUSECH_AUTH_KEY?.trim() || undefined,
+		spamhausDqsKey: (await decryptSetting(env, "spamhausDqsKey", stored?.spamhausDqsKey)) || env.SPAMHAUS_DQS_KEY?.trim() || undefined,
+		abuseChAuthKey: (await decryptSetting(env, "abusechAuthKey", stored?.abusechAuthKey)) || env.ABUSECH_AUTH_KEY?.trim() || undefined,
 		domainAge: (stored?.spamDomainAgeCheck ?? true) && !envFlagOff(env.SPAM_DOMAIN_AGE_CHECK),
 		brands: parseBrands(stored?.spamBrands),
 	};
@@ -69,8 +70,8 @@ export async function getSpamIntelligenceStatus(env: CloudflareEnv): Promise<Spa
 
 export async function saveSpamIntelligenceSettings(env: CloudflareEnv, values: Partial<Omit<StoredSettings, "spamBrands">> & { spamBrands?: SpamBrand[] }) {
 	const set: Partial<typeof appSettings.$inferInsert> = { updatedAt: new Date() };
-	if (values.spamhausDqsKey !== undefined) set.spamhausDqsKey = values.spamhausDqsKey;
-	if (values.abusechAuthKey !== undefined) set.abusechAuthKey = values.abusechAuthKey;
+	if (values.spamhausDqsKey !== undefined) set.spamhausDqsKey = await encryptSetting(env, "spamhausDqsKey", values.spamhausDqsKey);
+	if (values.abusechAuthKey !== undefined) set.abusechAuthKey = await encryptSetting(env, "abusechAuthKey", values.abusechAuthKey);
 	if (values.spamDomainAgeCheck !== undefined) set.spamDomainAgeCheck = values.spamDomainAgeCheck;
 	if (values.spamBrands !== undefined) set.spamBrands = values.spamBrands.length ? JSON.stringify(values.spamBrands) : null;
 	await getDb(env).insert(appSettings).values({ id: SPAM_SETTINGS_ID, ...set }).onConflictDoUpdate({ target: appSettings.id, set });

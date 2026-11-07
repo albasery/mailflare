@@ -8,8 +8,10 @@ ENV NEXT_TELEMETRY_DISABLED=1 MAILFLARE_RUNTIME=node
 # a fallback for platforms without one.
 FROM base AS deps
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
+# Match CI and lockfile generation; npm 10 resolves conditional overrides differently.
+RUN npm install --global npm@11.9.0 --no-audit --no-fund
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts && npm rebuild better-sqlite3
+RUN npm ci --ignore-scripts --no-audit --no-fund && npm rebuild better-sqlite3
 
 FROM deps AS build
 COPY . .
@@ -32,6 +34,7 @@ COPY --chown=node:node --from=build /app/public ./public
 COPY --chown=node:node --from=build /app/drizzle ./drizzle
 COPY --chown=node:node --from=build /app/package.json /app/next.config.ts ./
 COPY --chown=node:node --from=build /app/src/lib/security/headers.ts ./src/lib/security/headers.ts
+COPY --chown=node:node --from=build /app/scripts/queue-admin.mjs ./scripts/queue-admin.mjs
 RUN mkdir -p /data && chown node:node /data
 USER node
 VOLUME ["/data"]

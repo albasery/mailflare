@@ -1,3 +1,4 @@
+import { encryptSetting, decryptSetting, requireSettingsEncryptionKey } from "@/lib/security/settings-secrets";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { appSettings } from "@/db/schema";
@@ -23,11 +24,12 @@ const ruleName = (hostname: string) => `mailflare-${hostname.replace(/[^a-zA-Z0-
 export async function getSesReceivingState(env: CloudflareEnv): Promise<SesReceivingState | null> {
 	const [row] = await getDb(env).select({ value: appSettings.sesReceiving }).from(appSettings).where(eq(appSettings.id, "default")).limit(1);
 	if (!row?.value) return null;
-	try { return JSON.parse(row.value) as SesReceivingState; } catch { return null; }
+	const plaintext = await decryptSetting(env, "sesReceiving", row.value);
+	try { return JSON.parse(plaintext!) as SesReceivingState; } catch { return null; }
 }
 
 async function saveState(env: CloudflareEnv, state: SesReceivingState): Promise<void> {
-	const values = { sesReceiving: JSON.stringify(state), updatedAt: new Date() };
+	const values = { sesReceiving: await encryptSetting(env, "sesReceiving", JSON.stringify(state)), updatedAt: new Date() };
 	await getDb(env).insert(appSettings).values({ id: "default", ...values }).onConflictDoUpdate({ target: appSettings.id, set: values });
 }
 
@@ -50,6 +52,7 @@ export async function setupSesReceiving(
 	origin: string,
 	options: { replaceMx: boolean },
 ): Promise<void> {
+	requireSettingsEncryptionKey(env);
 	const config = await requireAwsConfig(env);
 	if (!SES_RECEIVING_REGIONS.includes(config.region)) {
 		throw new Error(`Amazon SES cannot receive mail in ${config.region}. Use a region such as us-east-1, us-west-2 or eu-west-1.`);

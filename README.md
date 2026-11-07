@@ -3,6 +3,8 @@
 
 # Mailflare
 
+> This fork contains an initial stability edition. Read the [deployment and recovery notes](docs/fork-stability.md) and [validation results](docs/fork-validation.md) before using it.
+
 A self-hosted alternative to Google Workspace. Setup **custom domain Emails**, **Calendar, Drive, Booking** and **built-in AI agents**.
 
 Run it on Cloudflare or Docker. Send and receive with Cloudflare, Resend or Amazon SES. Store files in R2, Backblaze B2 or AWS S3. Use D1, Postgres, MySQL or Turso for the database.

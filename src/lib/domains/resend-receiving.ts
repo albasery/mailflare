@@ -1,3 +1,4 @@
+import { encryptSetting, decryptSetting, requireSettingsEncryptionKey } from "@/lib/security/settings-secrets";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { appSettings } from "@/db/schema";
@@ -16,15 +17,15 @@ export const resendWebhookUrl = (origin: string) => `${origin.replace(/\/$/, "")
 
 export async function getResendWebhookSecret(env: CloudflareEnv): Promise<string | null> {
 	const [row] = await getDb(env).select({ secret: appSettings.resendWebhookSecret }).from(appSettings).where(eq(appSettings.id, "default")).limit(1);
-	return row?.secret ?? null;
+	return decryptSetting(env, "resendWebhookSecret", row?.secret);
 }
 
 async function storeWebhook(env: CloudflareEnv, id: string | null, secret: string | null): Promise<void> {
-	const values = { resendWebhookId: id, resendWebhookSecret: secret, updatedAt: new Date() };
+	const values = { resendWebhookId: id, resendWebhookSecret: await encryptSetting(env, "resendWebhookSecret", secret), updatedAt: new Date() };
 	await getDb(env).insert(appSettings).values({ id: "default", ...values }).onConflictDoUpdate({ target: appSettings.id, set: values });
 }
 
-function inboundMx(records: { type: string; value: string; priority?: number }[] | undefined) {
+function inboundMx(records: { type: string; value: string; priority?: number; status?: string }[] | undefined) {
 	return (records ?? []).find((record) => record.type === "MX" && isInboundSmtpMx(record.value)) ?? null;
 }
 
@@ -59,6 +60,7 @@ export async function setupResendReceiving(
 	if (!isPublicHttps(origin)) {
 		throw new Error("Resend delivers mail by calling this app over public HTTPS. Set APP_URL to your public address (localhost will not work).");
 	}
+	requireSettingsEncryptionKey(env);
 	const apiKey = await getResendApiKey(env);
 	let resend = await findResendDomain(apiKey, domain.hostname);
 	if (!resend) {
