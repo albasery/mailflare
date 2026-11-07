@@ -39,6 +39,10 @@ exception). Users can then enable push under **Settings → Inbox → Notificati
 
 ## Receiving mail
 
+To keep an existing provider and copy its INBOX without changing MX, use the
+[read-only IMAP bridge](imap-bridge.md) with that provider's SMTP relay. This is
+one-way inbox delivery, not bidirectional mailbox synchronization.
+
 Pick one; both can be on at once.
 
 **Built-in SMTP listener (default).** The container listens on port 25 and

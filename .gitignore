@@ -29,6 +29,7 @@ playwright-report/
 
 # misc
 .DS_Store
+__pycache__/
 *.pem
 
 # debug

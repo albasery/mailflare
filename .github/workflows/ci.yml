@@ -23,7 +23,10 @@ jobs:
       - run: npm run db:bundle
       - run: npx tsc --noEmit
       - run: node --test tests/*.test.mjs
+      - run: python3 -m unittest discover -s tests -p 'test_imap_bridge.py'
       - run: npm run build:node
+        if: matrix.node == '22'
+      - run: python3 tests/imap-bridge-e2e.py
         if: matrix.node == '22'
       - run: npm run build
         if: matrix.node == '24'

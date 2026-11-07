@@ -1,0 +1,30 @@
+[Unit]
+Description=Mailflare read-only IMAP inbox bridge
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mailflare-bridge
+Group=mailflare-bridge
+ExecStart=/usr/bin/python3 /opt/mailflare/scripts/imap-bridge.py /etc/mailflare/imap-bridge.json
+Restart=on-failure
+RestartSec=15
+StateDirectory=mailflare-bridge
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+MemoryMax=256M
+CPUQuota=20%
+
+[Install]
+WantedBy=multi-user.target
