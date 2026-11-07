@@ -8,8 +8,10 @@ ENV NEXT_TELEMETRY_DISABLED=1 MAILFLARE_RUNTIME=node
 # a fallback for platforms without one.
 FROM base AS deps
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
+# Match CI and lockfile generation; npm 10 resolves conditional overrides differently.
+RUN npm install --global npm@11.9.0 --no-audit --no-fund
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts && npm rebuild better-sqlite3
+RUN npm ci --ignore-scripts --no-audit --no-fund && npm rebuild better-sqlite3
 
 FROM deps AS build
 COPY . .

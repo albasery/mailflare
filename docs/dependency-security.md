@@ -3,6 +3,9 @@
 The self-hosted pilot uses patched Next.js, DOMPurify, MCP server, Zod and
 Nodemailer releases. The lockfile is part of the deployment: use `npm ci`
 and build a new image instead of installing packages inside a running image.
+Docker and CI pin npm 11.9.0, the version that generated and validated the
+lockfile. npm 10 resolves conditional overrides differently and rejects this
+lockfile; use the pinned version for a clean install.
 
 Several upstream packages pin vulnerable transitive releases. `package.json`
 overrides keep Joi and Undici on patched releases within their existing major
@@ -16,6 +19,7 @@ and rejection of a modified signature body. No message leaves the test host.
 Before updating these overrides, run:
 
 ```sh
+npm install --global npm@11.9.0 --no-audit --no-fund
 npm ci
 npm audit --omit=dev
 node --test tests/*.test.mjs
