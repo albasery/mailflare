@@ -109,15 +109,17 @@ async function main() {
 			tls: process.env.SMTP_TLS_KEY && process.env.SMTP_TLS_CERT ? { keyPath: process.env.SMTP_TLS_KEY, certPath: process.env.SMTP_TLS_CERT } : null,
 		});
 	}
-	const stopScheduler = startScheduler(env);
+	const stopScheduler = startScheduler(env, () => runtime.inboundQueue.referencedRawKeys());
 
-	const shutdown = () => {
+	let shuttingDown = false;
+	const shutdown = async () => {
+		if (shuttingDown) return;
+		shuttingDown = true;
 		stopScheduler();
-		runtime.inboundQueue.stop();
-		runtime.outboundQueue.stop();
-		runtime.agentQueue.stop();
-		server.close(() => process.exit(0));
 		setTimeout(() => process.exit(0), 5000).unref();
+		server.close();
+		await Promise.all([runtime.inboundQueue.stop(), runtime.outboundQueue.stop(), runtime.agentQueue.stop()]);
+		process.exit(0);
 	};
 	process.on("SIGTERM", shutdown);
 	process.on("SIGINT", shutdown);

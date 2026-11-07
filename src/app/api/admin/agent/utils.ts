@@ -1,3 +1,4 @@
+import { encryptSetting, requireSettingsEncryptionKey } from "@/lib/security/settings-secrets";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
@@ -60,6 +61,8 @@ export async function PUT(request: Request) {
 	if (input.provider === "compatible") {
 		try { baseUrl = resolveAgentBaseUrl(input.preset, input.baseUrl); }
 		catch { return Response.json({ error: "Enter a valid HTTPS provider base URL" }, { status: 400 }); }
+		try { requireSettingsEncryptionKey(access.env); }
+		catch (error) { return Response.json({ error: (error as Error).message }, { status: 409 }); }
 		const current = await getAgentProviderConfig(access.env);
 		apiKey = input.apiKey?.trim() || (current.provider === "compatible" && current.preset === input.preset && current.baseUrl === baseUrl ? current.apiKey : "") || null;
 		if (!apiKey) return Response.json({ error: "Enter an API key for this provider" }, { status: 400 });
@@ -68,7 +71,7 @@ export async function PUT(request: Request) {
 		agentProvider: input.provider,
 		agentPreset: input.provider === "compatible" ? input.preset : null,
 		agentBaseUrl: baseUrl,
-		agentApiKey: apiKey,
+		agentApiKey: await encryptSetting(access.env, "agentApiKey", apiKey),
 		agentModel: modelIds.join(", "),
 		agentModelRates: JSON.stringify(Object.fromEntries(modelIds.map((model) => [model, input.rates?.[model] ?? { input: null, output: null }]))),
 		updatedAt: new Date(),

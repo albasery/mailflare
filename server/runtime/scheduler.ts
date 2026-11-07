@@ -10,7 +10,7 @@ import { sweepImportJobs } from "@/lib/import/jobs";
 import { sweepOrphanedRawMail } from "@/lib/email/raw-sweeper";
 
 /** Fire the daily 02:00 UTC backup and the recurring maintenance jobs, matching the cron triggers in wrangler.jsonc. */
-export function startScheduler(env: CloudflareEnv) {
+export function startScheduler(env: CloudflareEnv, protectedRawKeys: () => ReadonlySet<string>) {
 	let lastRunDay = "";
 	const timer = setInterval(() => {
 		runAgentMaintenance(env).catch((error) => console.error("Agent maintenance failed", error));
@@ -26,7 +26,7 @@ export function startScheduler(env: CloudflareEnv) {
 		runDriveTrashRetention(env, now).catch((error) => console.error("Drive trash retention failed", error));
 		runAccountRetention(env, now).catch((error) => console.error("Account retention failed", error));
 		runJmapChangeRetention(env, now).catch((error) => console.error("JMAP change retention failed", error));
-		sweepOrphanedRawMail(env, now).catch((error) => console.error("Raw mail sweep failed", error));
+		sweepOrphanedRawMail(env, now, protectedRawKeys()).catch((error) => console.error("Raw mail sweep failed", error));
 	}, 60_000);
 	return () => clearInterval(timer);
 }

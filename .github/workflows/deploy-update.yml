@@ -1,69 +1,47 @@
-name: Dashboard Update
+name: Prepare Upstream Update
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upstream-update-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   update:
     runs-on: ubuntu-latest
     env:
       UPDATE_SOURCE_REPOSITORY: ${{ vars.UPDATE_SOURCE_REPOSITORY || 'hieunc229/mailflare' }}
-
+      GH_TOKEN: ${{ secrets.MAILFLARE_UPDATE_TOKEN || github.token }}
     steps:
-      - name: Check update token
-        env:
-          UPDATE_TOKEN: ${{ secrets.MAILFLARE_UPDATE_TOKEN }}
-        run: |
-          if [ -z "${UPDATE_TOKEN}" ]; then
-            echo "::error::Add MAILFLARE_UPDATE_TOKEN as a repository Actions secret."
-            exit 1
-          fi
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.MAILFLARE_UPDATE_TOKEN }}
-
-      - name: Replace repository with upstream source
+          token: ${{ secrets.MAILFLARE_UPDATE_TOKEN || github.token }}
+      - name: Prepare review branch without changing the deployment branch
+        id: update
+        shell: bash
         run: |
           set -euo pipefail
+          [[ "$UPDATE_SOURCE_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || exit 1
           git config user.name "mailflare-update"
           git config user.email "mailflare-update@users.noreply.github.com"
-
-          upstream_url="https://github.com/${UPDATE_SOURCE_REPOSITORY}.git"
-          if git remote get-url upstream >/dev/null 2>&1; then
-            git remote set-url upstream "${upstream_url}"
-          else
-            git remote add upstream "${upstream_url}"
-          fi
+          git remote add upstream "https://github.com/${UPDATE_SOURCE_REPOSITORY}.git"
           git fetch --no-tags upstream
-
           upstream_branch="$(git remote show upstream | sed -n 's/.*HEAD branch: //p')"
-          if [ -z "${upstream_branch}" ]; then
-            echo "::error::Could not resolve the default branch of ${UPDATE_SOURCE_REPOSITORY}."
-            exit 1
-          fi
+          test -n "$upstream_branch"
           upstream_ref="upstream/${upstream_branch}"
-          echo "Replacing ${GITHUB_REF_NAME} with ${upstream_ref}."
-
-          # Keep the installation repository's commit history while replacing
-          # its complete tracked tree with the current upstream tree.
-          git read-tree --reset -u "${upstream_ref}"
-          if git diff --cached --quiet; then
-            echo "Repository is already up to date."
+          if git merge-base --is-ancestor "$upstream_ref" HEAD; then
+            echo "No upstream changes."
             exit 0
           fi
-          git commit -m "Update Mailflare from ${UPDATE_SOURCE_REPOSITORY}@${upstream_branch}"
-
-      - name: Push update
-        run: |
-          set -euo pipefail
-          if [ -z "$(git log "origin/${GITHUB_REF_NAME}..HEAD" --oneline)" ]; then
-            echo "Repository is already up to date."
-            exit 0
-          fi
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          review_branch="updates/upstream-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          bash scripts/prepare-upstream-update.sh "$upstream_ref" "$review_branch"
+          git push origin "HEAD:refs/heads/${review_branch}"
+          gh pr create --repo "$GITHUB_REPOSITORY" --base "$GITHUB_REF_NAME" --head "$review_branch" --draft \
+            --title "Review upstream Mailflare update" \
+            --body "Upstream changes merged into a review branch. Check customizations, run tests and builds, and review migrations before merging. The deployment branch has not been changed."

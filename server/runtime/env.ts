@@ -37,9 +37,9 @@ export function createNodeRuntime(): NodeRuntime {
 	const database = getDatabaseConfig({}).driver === "d1" ? openSqliteDatabase(join(dataDir, "mailflare.sqlite")) : undefined;
 	const bucket = openFileBucket(join(dataDir, "blobs"));
 	const mailer = openMailer(mailerConfig());
-	const inboundQueue = openQueue("mailflare-inbound");
-	const outboundQueue = openQueue("mailflare-outbound");
-	const agentQueue = openQueue("mailflare-agent");
+	const inboundQueue = openQueue("mailflare-inbound", join(dataDir, "queues", "inbound.sqlite"));
+	const outboundQueue = openQueue("mailflare-outbound", join(dataDir, "queues", "outbound.sqlite"));
+	const agentQueue = openQueue("mailflare-agent", join(dataDir, "queues", "agent.sqlite"));
 	const realtime = new RealtimeHubRegistry();
 	const publicDir = resolve(optional("PUBLIC_DIR") ?? "./public");
 
@@ -53,6 +53,14 @@ export function createNodeRuntime(): NodeRuntime {
 		AI_MODEL: optional("AI_MODEL"),
 		AI_BASE_URL: optional("AI_BASE_URL"),
 		AI_API_KEY: optional("AI_API_KEY"),
+		SETTINGS_ENCRYPTION_KEY: optional("SETTINGS_ENCRYPTION_KEY"),
+		RESEND_API_KEY: optional("RESEND_API_KEY"),
+		AWS_ACCESS_KEY_ID: optional("AWS_ACCESS_KEY_ID"),
+		AWS_SECRET_ACCESS_KEY: optional("AWS_SECRET_ACCESS_KEY"),
+		AWS_REGION: optional("AWS_REGION") ?? optional("AWS_DEFAULT_REGION"),
+		SPAMHAUS_DQS_KEY: optional("SPAMHAUS_DQS_KEY"),
+		ABUSECH_AUTH_KEY: optional("ABUSECH_AUTH_KEY"),
+		SPAM_DOMAIN_AGE_CHECK: optional("SPAM_DOMAIN_AGE_CHECK"),
 		REALTIME: realtime.namespace(),
 		ASSETS: openAssets(publicDir),
 		IMAGES: undefined as unknown as CloudflareEnv["IMAGES"],

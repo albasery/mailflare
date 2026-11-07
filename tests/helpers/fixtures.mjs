@@ -22,7 +22,7 @@ export async function loadFixture({ name, entryPoint, mocks }) {
 		logLevel: "silent",
 		plugins: [{ name: `${name}-fixtures`, setup(builder) {
 			builder.onResolve({ filter: /.*/ }, ({ path }) => path in mocks ? { path, namespace: "mock" } : undefined);
-			builder.onLoad({ filter: /.*/, namespace: "mock" }, ({ path }) => ({ contents: mocks[path], loader: "js" }));
+			builder.onLoad({ filter: /.*/, namespace: "mock" }, ({ path }) => ({ contents: mocks[path], loader: "js", resolveDir: root }));
 		} }],
 	});
 	return {

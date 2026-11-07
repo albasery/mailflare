@@ -1,3 +1,4 @@
+import { requireSettingsEncryptionKey } from "@/lib/security/settings-secrets";
 import { z } from "zod";
 import { getEnv } from "@/lib/cloudflare";
 import { requireSessionUser } from "@/lib/api/auth";
@@ -42,6 +43,10 @@ export async function PUT(request: Request) {
 		return Response.json({ error: "Apply the pending database update first" }, { status: 409 });
 	}
 
+	if (input.spamhausDqsKey || input.abuseChAuthKey) {
+		try { requireSettingsEncryptionKey(access.env); }
+		catch (error) { return Response.json({ error: (error as Error).message }, { status: 409 }); }
+	}
 	if (input.spamhausDqsKey) {
 		const valid = await checkSpamhausKey(input.spamhausDqsKey).catch(() => null);
 		if (valid === null) return Response.json({ error: "Could not reach Spamhaus to check the key" }, { status: 502 });

@@ -1,4 +1,6 @@
 interface CloudflareEnv {
+	/** 32-byte hex key, stored outside the database; required for new saved credentials. */
+	SETTINGS_ENCRYPTION_KEY?: string;
 	DB: D1Database;
 	/** Connection string for an external database (PostgreSQL, MySQL, libSQL, ...); unset keeps D1. See docs/databases.md. */
 	DATABASE_URL?: string;

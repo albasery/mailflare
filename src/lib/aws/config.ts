@@ -1,3 +1,4 @@
+import { encryptSetting, decryptSetting } from "@/lib/security/settings-secrets";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { appSettings } from "@/db/schema";
@@ -20,7 +21,8 @@ type StoredAws = { accessKeyId?: string; secretAccessKey?: string; region?: stri
 async function readStored(env: CloudflareEnv): Promise<StoredAws | null> {
 	const [row] = await getDb(env).select({ awsConfig: appSettings.awsConfig }).from(appSettings).where(eq(appSettings.id, "default")).limit(1);
 	if (!row?.awsConfig) return null;
-	try { return JSON.parse(row.awsConfig) as StoredAws; } catch { return null; }
+	const plaintext = await decryptSetting(env, "awsConfig", row.awsConfig);
+	try { return JSON.parse(plaintext!) as StoredAws; } catch { return null; }
 }
 
 /** The saved AWS credentials, falling back to AWS_* environment variables. */
@@ -56,7 +58,7 @@ export async function getAwsConfigStatus(env: CloudflareEnv): Promise<AwsConfigS
 }
 
 export async function saveAwsConfig(env: CloudflareEnv, config: AwsConfig, accountId: string): Promise<void> {
-	const values = { awsConfig: JSON.stringify({ ...config, accountId }), updatedAt: new Date() };
+	const values = { awsConfig: await encryptSetting(env, "awsConfig", JSON.stringify({ ...config, accountId })), updatedAt: new Date() };
 	await getDb(env).insert(appSettings).values({ id: "default", ...values }).onConflictDoUpdate({ target: appSettings.id, set: values });
 }
 

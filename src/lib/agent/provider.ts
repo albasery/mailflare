@@ -1,3 +1,4 @@
+import { decryptSetting } from "@/lib/security/settings-secrets";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { appSettings } from "@/db/schema";
@@ -29,7 +30,7 @@ export async function getAgentProviderConfig(env: CloudflareEnv): Promise<AgentP
 		const preset = saved.preset || "custom";
 		const baseUrl = resolveAgentBaseUrl(preset, saved.baseUrl || "");
 		const models = parseAgentModelIds(saved.model || "");
-		return { provider: "compatible", preset, baseUrl, apiKey: saved.apiKey || (env.AI_BASE_URL === baseUrl ? env.AI_API_KEY : "") || "", model: models[0] || "", models, rates, source: "saved" };
+		return { provider: "compatible", preset, baseUrl, apiKey: (await decryptSetting(env, "agentApiKey", saved.apiKey)) || (env.AI_BASE_URL === baseUrl ? env.AI_API_KEY : "") || "", model: models[0] || "", models, rates, source: "saved" };
 	}
 	if (env.AI) { const model = env.AI_MODEL || DEFAULT_CLOUDFLARE_MODEL; return { provider: "cloudflare", preset: "openai", baseUrl: "", apiKey: "", model, models: [model], rates, source: "environment" }; }
 	if (env.AI_BASE_URL && env.AI_API_KEY) { const model = env.AI_MODEL || "gpt-4o-mini"; return { provider: "compatible", preset: "custom", baseUrl: env.AI_BASE_URL, apiKey: env.AI_API_KEY, model, models: [model], rates, source: "environment" }; }
